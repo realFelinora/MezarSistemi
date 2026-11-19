@@ -1,0 +1,66 @@
+# MezarSistemi ayarları
+# Mesaj dili: tr veya en
+dil: tr
+
+# Mezarı kaç saniye boyunca SADECE sahibi açabilir.
+# Süre bitince herkes açabilir. -1 yaparsan hep sadece sahibi açabilir.
+koruma-suresi: 300
+
+# Ölünce XP de mezara girsin mi? (levelin tamamı geri gelir)
+xp-sakla: true
+
+# Mezar oluşunca zararsız şimşek efekti
+simsek: true
+
+# Mezar olarak konacak blok (PLAYER_HEAD = oyuncunun kafası)
+mezar-blogu: PLAYER_HEAD
+
+# Mezar havada kalırsa altına konacak blok
+platform-blogu: COBBLESTONE
+
+# Bu dünyalarda mezar oluşmaz (eşyalar normal düşer)
+haric-dunyalar: []
+
+mesajlar:
+  tr:
+    onek: "&8[&c☠ Mezar&8] "
+    olustu: "&fÖldün ama eşyaların güvende! Mezarın: &e%x% %y% %z% &7(%dunya%)&f. Yolu görmek için &e/mezar"
+    geri-geldi: "&aEşyaların geri geldi!"
+    baskasinin: "&cBu mezar &e%oyuncu% &cadlı oyuncuya ait! &7Herkese açılmasına: &e%sure%"
+    hep-korumali: "&cBu mezar &e%oyuncu% &cadlı oyuncuya ait!"
+    yol: "&7Parçacıkları takip et, seni en yakın mezarına götürecek."
+    baska-dunyada: "&7En yakın mezarın başka bir dünyada: &e%dunya%"
+    liste-baslik: "&fMezarların:"
+    liste-satir: "&8» &e%x% %y% %z% &7(%dunya%) %durum%"
+    liste-bos: "&7Hiç mezarın yok. İyi gidiyorsun!"
+    yonetici-baslik: "&fTüm mezarlar (&e%sayi%&f):"
+    yonetici-satir: "&8» &f%oyuncu% &7- &e%x% %y% %z% &7(%dunya%) %durum%"
+    yenilendi: "&aAyarlar yenilendi."
+    yetki-yok: "&cBunun için yetkin yok."
+    yazi-baslik: "&c☠ &f%oyuncunun% Mezarı"
+    yazi-icerik: "&7%esya% eşya  &8•  &a%xp% XP"
+    yazi-ipucu: "&7Sağ tık: &aEşyaları al"
+    durum-korumali: "&e⏳ %sure%"
+    durum-acik: "&aHerkese açık"
+    durum-hep: "&e🔒 Sadece sahibi"
+  en:
+    onek: "&8[&c☠ Grave&8] "
+    olustu: "&fYou died but your items are safe! Your grave: &e%x% %y% %z% &7(%dunya%)&f. Type &e/grave &fto find it"
+    geri-geldi: "&aYour items are back!"
+    baskasinin: "&cThis grave belongs to &e%oyuncu%&c! &7Opens to everyone in: &e%sure%"
+    hep-korumali: "&cThis grave belongs to &e%oyuncu%&c!"
+    yol: "&7Follow the particles to your nearest grave."
+    baska-dunyada: "&7Your nearest grave is in another world: &e%dunya%"
+    liste-baslik: "&fYour graves:"
+    liste-satir: "&8» &e%x% %y% %z% &7(%dunya%) %durum%"
+    liste-bos: "&7You have no graves. Nice!"
+    yonetici-baslik: "&fAll graves (&e%sayi%&f):"
+    yonetici-satir: "&8» &f%oyuncu% &7- &e%x% %y% %z% &7(%dunya%) %durum%"
+    yenilendi: "&aConfig reloaded."
+    yetki-yok: "&cYou don't have permission."
+    yazi-baslik: "&c☠ &f%oyuncunun% Grave"
+    yazi-icerik: "&7%esya% items  &8•  &a%xp% XP"
+    yazi-ipucu: "&7Right click: &aGet your items"
+    durum-korumali: "&e⏳ %sure%"
+    durum-acik: "&aOpen to everyone"
+    durum-hep: "&e🔒 Owner only"

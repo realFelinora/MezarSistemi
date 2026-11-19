@@ -1,0 +1,20 @@
+name: MezarSistemi
+version: '${version}'
+main: dev.felinora.mezar.MezarSistemi
+api-version: '1.21'
+author: Felinora
+description: Ölünce eşyaların kaybolmaz, mezarında seni bekler.
+
+commands:
+  mezar:
+    description: Mezarlarını gösterir ve yolunu gösterir.
+    usage: /<command> [liste|yenile]
+    aliases: [mezarlar, grave, graves]
+
+permissions:
+  mezar.kullan:
+    description: Ölünce mezar oluşur, /mezar kullanabilir.
+    default: true
+  mezar.yonetici:
+    description: Tüm mezarları görür ve açabilir, ayarları yeniler.
+    default: op
