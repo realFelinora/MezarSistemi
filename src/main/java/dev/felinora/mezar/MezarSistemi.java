@@ -58,8 +58,29 @@ import java.util.UUID;
 public final class MezarSistemi extends JavaPlugin implements Listener, TabCompleter {
 
     /** Mezarın yerine konabileceği "yumuşak" bloklar. */
-    private static final Set<Material> YUMUSAK = EnumSet.of(
-            Material.SHORT_GRASS, Material.FERN, Material.DEAD_BUSH, Material.SNOW);
+    private static final Set<Material> YUMUSAK = EnumSet.noneOf(Material.class);
+
+    // 1.20.5'te adı değişen parçacıklar: hangi sürümde hangisi varsa o kullanılır.
+    private static final Particle TOZ = parcacik("DUST", "REDSTONE");
+    private static final Particle TOTEM = parcacik("TOTEM_OF_UNDYING", "TOTEM");
+
+    static {
+        // "SHORT_GRASS" 1.20.3+, "GRASS" daha eski sürümlerde çimen bitkisi
+        for (String ad : new String[]{"SHORT_GRASS", "GRASS", "FERN", "DEAD_BUSH", "SNOW"}) {
+            Material m = Material.getMaterial(ad);
+            if (m != null && m.isBlock() && m != Material.GRASS_BLOCK) YUMUSAK.add(m);
+        }
+    }
+
+    private static Particle parcacik(String... adlar) {
+        for (String ad : adlar) {
+            try {
+                return Particle.valueOf(ad);
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        throw new IllegalStateException("Parçacık bulunamadı: " + String.join("/", adlar));
+    }
 
     private final Map<String, Mezar> mezarlar = new LinkedHashMap<>();
     /** Dünyası yüklenmemiş mezarlar kaybolmasın diye ham hâliyle saklanır. */
@@ -311,7 +332,7 @@ public final class MezarSistemi extends JavaPlugin implements Listener, TabCompl
 
         Location orta = m.yer.clone().add(0.5, 0.4, 0.5);
         World w = orta.getWorld();
-        w.spawnParticle(Particle.TOTEM_OF_UNDYING, orta, 80, 0.3, 0.5, 0.3, 0.5);
+        w.spawnParticle(TOTEM, orta, 80, 0.3, 0.5, 0.3, 0.5);
         w.spawnParticle(Particle.SOUL, orta, 15, 0.3, 0.3, 0.3, 0.05);
         p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_NETHERITE, 1f, 1f);
         p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1.2f);
@@ -385,12 +406,12 @@ public final class MezarSistemi extends JavaPlugin implements Listener, TabCompl
                     + metin("yazi-icerik", "%esya%", String.valueOf(m.esyaSayisi()), "%xp%", String.valueOf(m.xp)) + "\n"
                     + durum(m) + "\n" + metin("yazi-ipucu"));
             if (m.yazi == null || !m.yazi.isValid()) {
-                m.yazi = w.spawn(m.yer.clone().add(0.5, 0.75, 0.5), TextDisplay.class, t -> {
-                    t.setBillboard(Display.Billboard.CENTER);
-                    t.setPersistent(false);
-                    t.setShadowed(true);
-                    t.getPersistentDataContainer().set(yaziEtiketi, PersistentDataType.BYTE, (byte) 1);
-                });
+                TextDisplay t = w.spawn(m.yer.clone().add(0.5, 0.75, 0.5), TextDisplay.class);
+                t.setBillboard(Display.Billboard.CENTER);
+                t.setPersistent(false);
+                t.setShadowed(true);
+                t.getPersistentDataContainer().set(yaziEtiketi, PersistentDataType.BYTE, (byte) 1);
+                m.yazi = t;
             }
             m.yazi.setText(yazi);
 
@@ -435,8 +456,8 @@ public final class MezarSistemi extends JavaPlugin implements Listener, TabCompl
                     double a = d * 2.0 - faz;
                     Vector ofs = u.clone().multiply(Math.cos(a) * 0.22).add(v.clone().multiply(Math.sin(a) * 0.22));
                     Location n = bas.clone().add(yon.clone().multiply(d));
-                    p.spawnParticle(Particle.DUST, n.clone().add(ofs), 1, 0, 0, 0, 0, altin);
-                    p.spawnParticle(Particle.DUST, n.clone().subtract(ofs), 1, 0, 0, 0, 0, turuncu);
+                    p.spawnParticle(TOZ, n.clone().add(ofs), 1, 0, 0, 0, 0, altin);
+                    p.spawnParticle(TOZ, n.clone().subtract(ofs), 1, 0, 0, 0, 0, turuncu);
                 }
                 // Mezara doğru akan parlak noktalar
                 double kayma = (sayac * 0.3) % 1.8;
@@ -452,7 +473,7 @@ public final class MezarSistemi extends JavaPlugin implements Listener, TabCompl
                 if (mesafe < 48 && sayac % 2 == 0) {
                     for (double h = 0.5; h < 14; h += 0.35) {
                         double a = h * 1.3 + faz;
-                        p.spawnParticle(Particle.DUST, hedef.clone().add(Math.cos(a) * 0.4, h, Math.sin(a) * 0.4), 1, 0, 0, 0, 0, altin);
+                        p.spawnParticle(TOZ, hedef.clone().add(Math.cos(a) * 0.4, h, Math.sin(a) * 0.4), 1, 0, 0, 0, 0, altin);
                     }
                     for (double h = 0.5; h < 14; h += 1.0) {
                         p.spawnParticle(Particle.END_ROD, hedef.clone().add(0, h, 0), 1, 0, 0, 0, 0);

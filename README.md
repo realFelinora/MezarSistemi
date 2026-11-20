@@ -39,10 +39,10 @@ haric-dunyalar: []    # mezar oluşmayacak dünyalar
 ```
 Tüm mesajlar `config.yml` üzerinden değiştirilebilir.
 
-**Uyumluluk:** Paper / Spigot 1.21+, Java 21+
+**Uyumluluk:** Paper / Spigot 1.20.1 – 1.21.x, Java 17+
 
 ## Derleme
 ```sh
 ./gradlew build
-# çıktı: build/libs/MezarSistemi-1.0.0.jar
+# çıktı: build/libs/MezarSistemi-1.1.0.jar
 ```
