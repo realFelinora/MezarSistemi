@@ -20,7 +20,9 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Display;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
@@ -41,7 +43,10 @@ import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 import java.io.File;
 import java.io.IOException;
@@ -52,6 +57,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
@@ -63,6 +69,7 @@ public final class MezarSistemi extends JavaPlugin implements Listener, TabCompl
     // 1.20.5'te adı değişen parçacıklar: hangi sürümde hangisi varsa o kullanılır.
     private static final Particle TOZ = parcacik("DUST", "REDSTONE");
     private static final Particle TOTEM = parcacik("TOTEM_OF_UNDYING", "TOTEM");
+    private static final Particle BLOK = parcacik("BLOCK", "BLOCK_CRACK");
 
     static {
         // "SHORT_GRASS" 1.20.3+, "GRASS" daha eski sürümlerde çimen bitkisi
@@ -114,7 +121,10 @@ public final class MezarSistemi extends JavaPlugin implements Listener, TabCompl
     @Override
     public void onDisable() {
         kaydet();
-        for (Mezar m : mezarlar.values()) if (m.yazi != null) m.yazi.remove();
+        for (Mezar m : mezarlar.values()) {
+            if (m.yazi != null) m.yazi.remove();
+            gorselleriSil(m);
+        }
     }
 
     // ------------------------------------------------------------------ ayarlar
@@ -195,11 +205,14 @@ public final class MezarSistemi extends JavaPlugin implements Listener, TabCompl
         for (ItemStack it : esyalar.values()) e.getDrops().remove(it);
         if (xp > 0) e.setDroppedExp(0);
 
-        mezarBlokuKoy(yer.getBlock(), p);
         Mezar m = new Mezar(UUID.randomUUID(), p.getUniqueId(), p.getName(), yer,
                 System.currentTimeMillis(), esyalar, Math.max(0, xp));
+        m.yon = Math.round(p.getLocation().getYaw() / 90f) * 90f;
+        m.tohum = new Random().nextLong();
+        mezarBlokuKoy(yer.getBlock(), p);
         mezarlar.put(m.anahtar(), m);
         kaydet();
+        if (gercekci()) gorunumKur(m, true);
 
         if (getConfig().getBoolean("simsek", true)) yer.getWorld().strikeLightningEffect(yer);
         mesaj(p, "olustu", "%x%", String.valueOf(yer.getBlockX()), "%y%", String.valueOf(yer.getBlockY()),
@@ -215,8 +228,17 @@ public final class MezarSistemi extends JavaPlugin implements Listener, TabCompl
         return temel + Math.round(p.getExp() * p.getExpToLevel());
     }
 
+    private boolean gercekci() {
+        return !"kafa".equalsIgnoreCase(getConfig().getString("gorunum", "gercekci"));
+    }
+
+    private Material blokTuru() {
+        return gercekci() ? Material.BARRIER : mezarBlogu;
+    }
+
     private void mezarBlokuKoy(Block b, Player p) {
-        b.setType(mezarBlogu, false);
+        b.setType(blokTuru(), false);
+        if (gercekci()) return;
         if (b.getState() instanceof Skull kafa) {
             kafa.setOwningPlayer(p);
             kafa.update(true, false);
@@ -315,7 +337,8 @@ public final class MezarSistemi extends JavaPlugin implements Listener, TabCompl
             }
         }
 
-        mezariKaldir(m);
+        mezariKaldir(m, true);
+        if (m.gosteri) return;
 
         PlayerInventory env = p.getInventory();
         List<ItemStack> artan = new ArrayList<>();
@@ -339,12 +362,194 @@ public final class MezarSistemi extends JavaPlugin implements Listener, TabCompl
         mesaj(p, "geri-geldi");
     }
 
-    private void mezariKaldir(Mezar m) {
+    private void mezariKaldir(Mezar m, boolean batir) {
         mezarlar.remove(m.anahtar());
         if (m.yazi != null) m.yazi.remove();
         Block b = m.yer.getBlock();
-        if (b.getType() == mezarBlogu) b.setType(Material.AIR, false);
+        if (b.getType() == mezarBlogu || b.getType() == Material.BARRIER) b.setType(Material.AIR, false);
+        if (batir && !m.gorseller.isEmpty()) topragaBatir(m);
+        else gorselleriSil(m);
         kaydet();
+    }
+
+
+    // ------------------------------------------------------------------ gerçekçi mezar görünümü
+
+    /** Bir görsel parça: animasyon için asıl dönüşümünü saklar. */
+    private record Parca(Display d, Vector3f t, Quaternionf r, Vector3f s, float dusme) { }
+
+    private final Map<Mezar, List<Parca>> parcalar = new HashMap<>();
+
+    private static final String[] CICEKLER = {"poppy", "lily_of_the_valley", "azure_bluet", "oxeye_daisy", "cornflower", "wither_rose", "allium"};
+    private static final String[] SILAHLAR = {"NETHERITE_SWORD", "DIAMOND_SWORD", "NETHERITE_AXE", "DIAMOND_AXE", "IRON_SWORD",
+            "IRON_AXE", "GOLDEN_SWORD", "STONE_SWORD", "WOODEN_SWORD", "TRIDENT", "MACE"};
+
+    private ItemStack enIyiSilah(Mezar m) {
+        for (String ad : SILAHLAR) {
+            for (ItemStack it : m.esyalar.values()) {
+                if (it.getType().name().equals(ad)) {
+                    ItemStack k = it.clone();
+                    k.setAmount(1);
+                    return k;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Mezar taşı, kaide, yosun, toprak yığını, çiçekler, mumlar, saplanmış silah ve kazınmış yazı.
+     * Hepsi görüntü varlığı; gerçek blok sadece görünmez bariyer. Her mezar tohuma göre biraz farklı.
+     */
+    private void gorunumKur(Mezar m, boolean yuksel) {
+        World w = m.yer.getWorld();
+        if (w == null) return;
+        Location kok = m.yer.clone().add(0.5, 0, 0.5);
+        Random r = new Random(m.tohum);
+        Quaternionf yaw = new Quaternionf().rotateY((float) Math.toRadians(180 - m.yon) + (float) ((r.nextDouble() - 0.5) * 0.14));
+        // Eski, toprağa oturmuş görünüm: biraz geriye ve yana yatık
+        Quaternionf egik = new Quaternionf(yaw).rotateX((float) (-0.04 - r.nextDouble() * 0.07)).rotateZ((float) ((r.nextDouble() - 0.5) * 0.13));
+        Vector3f tasKok = new Vector3f(0, 0.14f, -0.28f);
+        List<Parca> liste = new ArrayList<>();
+        m.alevler.clear();
+
+        String tas = getConfig().getString("tas-blogu", "polished_andesite");
+        // kaide (yerde, yatık değil)
+        liste.add(blok(w, kok, yaw, yaw, new Vector3f(), new Vector3f(0, 0, -0.28f), new Vector3f(0.92f, 0.14f, 0.32f), "stone_bricks", 1.4f));
+        // mezar taşı + yuvarlak tepe
+        liste.add(blok(w, kok, yaw, egik, tasKok, new Vector3f(0, 0, 0), new Vector3f(0.72f, 0.95f, 0.16f), tas, 1.4f));
+        liste.add(blok(w, kok, yaw, egik, tasKok, new Vector3f(0, 0.95f, 0), new Vector3f(0.58f, 0.08f, 0.16f), tas, 1.4f));
+        liste.add(blok(w, kok, yaw, egik, tasKok, new Vector3f(0, 1.03f, 0), new Vector3f(0.38f, 0.06f, 0.16f), tas, 1.4f));
+        // yosun lekeleri
+        liste.add(blok(w, kok, yaw, egik, tasKok, new Vector3f(-0.22f, 0.0f, 0.075f), new Vector3f(0.24f, 0.2f, 0.02f), "moss_block", 1.4f));
+        liste.add(blok(w, kok, yaw, egik, tasKok, new Vector3f(0.24f, 0.78f, 0.075f), new Vector3f(0.12f, 0.1f, 0.02f), "moss_block", 1.4f));
+        liste.add(blok(w, kok, yaw, egik, tasKok, new Vector3f(0.18f, 0.0f, -0.075f), new Vector3f(0.3f, 0.14f, 0.02f), "moss_block", 1.4f));
+        // toprak yığını
+        liste.add(blok(w, kok, yaw, yaw, new Vector3f(), new Vector3f(0, 0, 0.45f), new Vector3f(0.78f, 0.15f, 1.15f), "coarse_dirt", 0.45f));
+        liste.add(blok(w, kok, yaw, yaw, new Vector3f(), new Vector3f(0, 0.15f, 0.45f), new Vector3f(0.6f, 0.09f, 0.95f), "rooted_dirt", 0.45f));
+        // çiçekler
+        int cicek = 2 + r.nextInt(2);
+        for (int i = 0; i < cicek; i++) {
+            float x = (float) (r.nextDouble() * 0.44 - 0.22), z = (float) (0.15 + r.nextDouble() * 0.6);
+            String c = CICEKLER[r.nextInt(CICEKLER.length)];
+            Quaternionf cr = new Quaternionf(yaw).rotateY((float) (r.nextDouble() * Math.PI));
+            liste.add(blok(w, kok, yaw, cr, new Vector3f(x, 0.24f, z), new Vector3f(), new Vector3f(0.42f, 0.42f, 0.42f), c, 0.6f));
+        }
+        // mumlar (kaidenin önünde), alevleri parçacıkla
+        for (float x : new float[]{-0.32f, 0.33f}) {
+            if (r.nextInt(4) == 0) continue;
+            String mum = r.nextBoolean() ? "white_candle" : "candle";
+            liste.add(blok(w, kok, yaw, yaw, new Vector3f(), new Vector3f(x, 0.14f, -0.17f), new Vector3f(1, 1, 1), mum + "[candles=1,lit=true]", 1.4f));
+            Vector3f fitil = yaw.transform(new Vector3f(x, 0.14f + 0.5f, -0.17f));
+            m.alevler.add(kok.clone().add(fitil.x, fitil.y, fitil.z));
+        }
+        // ölen oyuncunun silahı toprağa saplı
+        ItemStack silah = !getConfig().getBoolean("silah-goster", true) ? null : (m.gosteri ? m.gosteriSilah : enIyiSilah(m));
+        if (silah != null) {
+            float x = r.nextBoolean() ? 0.2f : -0.2f;
+            Quaternionf sr = new Quaternionf(yaw).rotateY((float) ((r.nextDouble() - 0.5) * 0.8)).rotateZ((float) (Math.PI * 0.75 + (r.nextDouble() - 0.5) * 0.3));   // ucu aşağıda
+            Vector3f t = yaw.transform(new Vector3f(x, 0.38f, 0.62f));
+            ItemDisplay d = w.spawn(kok, ItemDisplay.class);
+            d.setItemStack(silah);
+            liste.add(hazirla(d, t, sr, new Vector3f(0.8f, 0.8f, 0.8f), 1.4f));
+        }
+        // taşa kazınmış yazı
+        String tarih = new java.text.SimpleDateFormat("dd.MM.yyyy").format(new java.util.Date(m.zaman));
+        TextDisplay yazi = w.spawn(kok, TextDisplay.class);
+        yazi.setText("§0✝\n§0§lR.I.P\n§0" + m.sahipAdi + "\n§0" + tarih);
+        yazi.setBillboard(Display.Billboard.FIXED);
+        yazi.setShadowed(false);
+        yazi.setBackgroundColor(Color.fromARGB(0, 0, 0, 0));
+        yazi.setLineWidth(200);
+        Vector3f yaziT = yaw.transform(new Vector3f(tasKok)).add(egik.transform(new Vector3f(0, 0.34f, 0.085f)));
+        liste.add(hazirla(yazi, yaziT, new Quaternionf(egik), new Vector3f(0.3f, 0.3f, 0.3f), 1.4f));
+
+        for (Parca pr : liste) m.gorseller.add(pr.d());
+        parcalar.put(m, liste);
+
+        if (!yuksel) return;
+        // Topraktan yükselme: önce aşağıda başlat, sonra 40 tikte yerine çıkar
+        m.animasyonda = true;
+        for (Parca pr : liste) uygula(pr, -pr.dusme(), 0);
+        Block zemin = m.yer.getBlock().getRelative(BlockFace.DOWN);
+        BlockData zeminVeri = zemin.getType().isAir() ? Bukkit.createBlockData(Material.DIRT) : zemin.getBlockData();
+        w.playSound(kok, Sound.BLOCK_BELL_USE, 1.6f, 0.5f);
+        new BukkitRunnable() {
+            int t = 0;
+
+            @Override
+            public void run() {
+                t++;
+                if (!mezarlar.containsKey(m.anahtar())) { m.animasyonda = false; cancel(); return; }
+                if (t == 3) for (Parca pr : liste) uygula(pr, 0, 40);
+                if (t >= 3 && t <= 43 && t % 2 == 0) {
+                    w.spawnParticle(BLOK, kok.clone().add(0, 0.1, 0.2), 10, 0.45, 0.05, 0.6, 0, zeminVeri);
+                    if (t % 6 == 0) w.playSound(kok, Sound.BLOCK_ROOTED_DIRT_BREAK, 0.8f, 0.6f + t * 0.01f);
+                }
+                if (t == 25) w.playSound(kok, Sound.BLOCK_BELL_USE, 1.2f, 0.45f);
+                if (t == 44) {
+                    w.playSound(kok, Sound.BLOCK_STONE_PLACE, 1.2f, 0.6f);
+                    w.spawnParticle(Particle.SOUL, kok.clone().add(0, 0.6, 0.3), 12, 0.3, 0.4, 0.4, 0.02);
+                    m.animasyonda = false;
+                    cancel();
+                }
+            }
+        }.runTaskTimer(this, 1L, 1L);
+    }
+
+    /**
+     * Blok parçası: pivot (yerel, sadece yaw ile döner) + rot ile dönen köşe.
+     * merkezAlt = pivota göre parçanın alt-orta noktası, boyut = ölçek.
+     */
+    private Parca blok(World w, Location kok, Quaternionf yaw, Quaternionf rot, Vector3f pivot, Vector3f merkezAlt,
+                       Vector3f boyut, String blok, float dusme) {
+        BlockDisplay d = w.spawn(kok, BlockDisplay.class);
+        d.setBlock(Bukkit.createBlockData("minecraft:" + blok));
+        Vector3f kose = new Vector3f(merkezAlt).sub(boyut.x / 2, 0, boyut.z / 2);
+        Vector3f t = yaw.transform(new Vector3f(pivot)).add(rot.transform(new Vector3f(kose)));
+        return hazirla(d, t, rot, boyut, dusme);
+    }
+
+    private Parca hazirla(Display d, Vector3f t, Quaternionf r, Vector3f s, float dusme) {
+        d.setPersistent(false);
+        d.getPersistentDataContainer().set(yaziEtiketi, PersistentDataType.BYTE, (byte) 2);
+        Parca p = new Parca(d, t, new Quaternionf(r), new Vector3f(s), dusme);
+        uygula(p, 0, 0);
+        return p;
+    }
+
+    private static void uygula(Parca p, float dy, int sure) {
+        p.d().setInterpolationDelay(0);
+        p.d().setInterpolationDuration(sure);
+        p.d().setTransformation(new Transformation(new Vector3f(p.t()).add(0, dy, 0), new Quaternionf(p.r()), new Vector3f(p.s()), new Quaternionf()));
+    }
+
+    private void gorselleriSil(Mezar m) {
+        for (Display d : m.gorseller) d.remove();
+        m.gorseller.clear();
+        parcalar.remove(m);
+    }
+
+    /** Açılınca mezar toprağa geri batar, sonra görseller silinir. */
+    private void topragaBatir(Mezar m) {
+        List<Parca> liste = parcalar.get(m);
+        if (liste == null) { gorselleriSil(m); return; }
+        World w = m.yer.getWorld();
+        Location kok = m.yer.clone().add(0.5, 0, 0.5);
+        for (Parca pr : liste) uygula(pr, -pr.dusme(), 20);
+        Block zemin = m.yer.getBlock().getRelative(BlockFace.DOWN);
+        BlockData zeminVeri = zemin.getType().isAir() ? Bukkit.createBlockData(Material.DIRT) : zemin.getBlockData();
+        w.playSound(kok, Sound.BLOCK_ROOTED_DIRT_BREAK, 1f, 0.6f);
+        new BukkitRunnable() {
+            int t = 0;
+
+            @Override
+            public void run() {
+                t++;
+                if (t % 2 == 0) w.spawnParticle(BLOK, kok.clone().add(0, 0.1, 0.2), 8, 0.45, 0.05, 0.6, 0, zeminVeri);
+                if (t >= 22) { gorselleriSil(m); cancel(); }
+            }
+        }.runTaskTimer(this, 1L, 1L);
     }
 
     // ------------------------------------------------------------------ koruma
@@ -400,25 +605,43 @@ public final class MezarSistemi extends JavaPlugin implements Listener, TabCompl
             if (w == null || !w.isChunkLoaded(m.yer.getBlockX() >> 4, m.yer.getBlockZ() >> 4)) continue;
 
             Block b = m.yer.getBlock();
-            if (b.getType() != mezarBlogu) b.setType(mezarBlogu, false); // komutla silinirse geri koy
+            if (b.getType() != blokTuru()) b.setType(blokTuru(), false); // komutla silinirse geri koy
+            boolean gercek = gercekci();
+            if (gercek && !m.animasyonda && (m.gorseller.isEmpty() || m.gorseller.stream().anyMatch(d -> !d.isValid()))) {
+                gorselleriSil(m);
+                gorunumKur(m, false);   // sunucu açılışı / chunk yüklenince yeniden kur
+            } else if (!gercek && !m.gorseller.isEmpty()) {
+                gorselleriSil(m);
+            }
 
             String yazi = renk(metin("yazi-baslik", "%oyuncunun%", iyelik(m.sahipAdi)) + "\n"
                     + metin("yazi-icerik", "%esya%", String.valueOf(m.esyaSayisi()), "%xp%", String.valueOf(m.xp)) + "\n"
                     + durum(m) + "\n" + metin("yazi-ipucu"));
-            if (m.yazi == null || !m.yazi.isValid()) {
-                TextDisplay t = w.spawn(m.yer.clone().add(0.5, 0.75, 0.5), TextDisplay.class);
-                t.setBillboard(Display.Billboard.CENTER);
-                t.setPersistent(false);
-                t.setShadowed(true);
-                t.getPersistentDataContainer().set(yaziEtiketi, PersistentDataType.BYTE, (byte) 1);
-                m.yazi = t;
+            if (m.gosteri) {   // gösteride "0 eşya" yazısı çıkmasın
+                if (m.yazi != null) { m.yazi.remove(); m.yazi = null; }
+            } else {
+                if (m.yazi == null || !m.yazi.isValid()) {
+                    TextDisplay t = w.spawn(m.yer.clone().add(0.5, gercek ? 1.7 : 0.75, 0.5), TextDisplay.class);
+                    t.setBillboard(Display.Billboard.CENTER);
+                    t.setPersistent(false);
+                    t.setShadowed(true);
+                    t.getPersistentDataContainer().set(yaziEtiketi, PersistentDataType.BYTE, (byte) 1);
+                    m.yazi = t;
+                }
+                m.yazi.setText(yazi);
             }
-            m.yazi.setText(yazi);
 
             Location orta = m.yer.clone().add(0.5, 0.5, 0.5);
-            w.spawnParticle(Particle.SOUL, orta.clone().add(0, 0.3, 0), 1, 0.15, 0.1, 0.15, 0.01);
-            double a = tik * 0.35;
-            w.spawnParticle(Particle.END_ROD, orta.clone().add(Math.cos(a) * 0.6, -0.3, Math.sin(a) * 0.6), 1, 0, 0, 0, 0);
+            if (gercek) {
+                if (!m.animasyonda) {
+                    for (Location alev : m.alevler) w.spawnParticle(Particle.SMALL_FLAME, alev, 1, 0.005, 0.01, 0.005, 0.002);
+                }
+                if (tik % 5 == 0) w.spawnParticle(Particle.SOUL, orta.clone().add(0, -0.1, 0.4), 1, 0.25, 0.05, 0.4, 0.008);
+            } else {
+                w.spawnParticle(Particle.SOUL, orta.clone().add(0, 0.3, 0), 1, 0.15, 0.1, 0.15, 0.01);
+                double a = tik * 0.35;
+                w.spawnParticle(Particle.END_ROD, orta.clone().add(Math.cos(a) * 0.6, -0.3, Math.sin(a) * 0.6), 1, 0, 0, 0, 0);
+            }
         }
     }
 
@@ -494,6 +717,25 @@ public final class MezarSistemi extends JavaPlugin implements Listener, TabCompl
             mesaj(s, "yenilendi");
             return true;
         }
+        if ((alt.equals("ornek") || alt.equals("demo")) && s instanceof Player op) {
+            if (!s.hasPermission("mezar.yonetici")) { mesaj(s, "yetki-yok"); return true; }
+            Block hedef = op.getTargetBlockExact(12);
+            if (hedef == null) { s.sendMessage(renk("&cBir bloğa bak.")); return true; }
+            Block ust = hedef.getRelative(BlockFace.UP);
+            if (!bos(ust)) { s.sendMessage(renk("&cBaktığın yerin üstü boş olmalı.")); return true; }
+            Mezar g = new Mezar(UUID.randomUUID(), op.getUniqueId(), op.getName(), ust.getLocation(),
+                    System.currentTimeMillis(), new LinkedHashMap<>(), 0);
+            g.gosteri = true;
+            g.yon = Math.round(op.getLocation().getYaw() / 90f) * 90f;
+            g.tohum = new Random().nextLong();
+            ItemStack el = op.getInventory().getItemInMainHand();
+            if (!el.getType().isAir()) { g.gosteriSilah = el.clone(); g.gosteriSilah.setAmount(1); }
+            mezarBlokuKoy(ust, op);
+            mezarlar.put(g.anahtar(), g);
+            if (gercekci()) gorunumKur(g, true);
+            if (getConfig().getBoolean("simsek", true)) ust.getWorld().strikeLightningEffect(ust.getLocation());
+            return true;
+        }
         if (alt.equals("liste") || alt.equals("list") || !(s instanceof Player)) {
             if (!s.hasPermission("mezar.yonetici")) { mesaj(s, "yetki-yok"); return true; }
             s.sendMessage(renk(metin("onek") + metin("yonetici-baslik", "%sayi%", String.valueOf(mezarlar.size()))));
@@ -535,7 +777,7 @@ public final class MezarSistemi extends JavaPlugin implements Listener, TabCompl
     @Override
     public List<String> onTabComplete(CommandSender s, Command cmd, String label, String[] args) {
         if (args.length == 1 && s.hasPermission("mezar.yonetici")) {
-            return List.of("liste", "yenile").stream().filter(a -> a.startsWith(args[0].toLowerCase())).toList();
+            return List.of("liste", "yenile", "ornek").stream().filter(a -> a.startsWith(args[0].toLowerCase())).toList();
         }
         return List.of();
     }
@@ -563,6 +805,8 @@ public final class MezarSistemi extends JavaPlugin implements Listener, TabCompl
             Location yer = new Location(w, k.getInt("x"), k.getInt("y"), k.getInt("z"));
             Mezar m = new Mezar(UUID.fromString(id), UUID.fromString(k.getString("sahip")),
                     k.getString("ad", "?"), yer, k.getLong("zaman"), esyalar, k.getInt("xp"));
+            m.yon = (float) k.getDouble("yon", 0);
+            m.tohum = k.getLong("tohum", id.hashCode());
             mezarlar.put(m.anahtar(), m);
         }
     }
@@ -581,6 +825,7 @@ public final class MezarSistemi extends JavaPlugin implements Listener, TabCompl
             y.createSection("mezarlar." + h.getKey(), haritaya(h.getValue()));
         }
         for (Mezar m : mezarlar.values()) {
+            if (m.gosteri) continue;
             String k = "mezarlar." + m.id;
             y.set(k + ".sahip", m.sahip.toString());
             y.set(k + ".ad", m.sahipAdi);
@@ -590,6 +835,8 @@ public final class MezarSistemi extends JavaPlugin implements Listener, TabCompl
             y.set(k + ".z", m.yer.getBlockZ());
             y.set(k + ".zaman", m.zaman);
             y.set(k + ".xp", m.xp);
+            y.set(k + ".yon", (double) m.yon);
+            y.set(k + ".tohum", m.tohum);
             for (Map.Entry<Integer, ItemStack> g : m.esyalar.entrySet()) {
                 y.set(k + ".esyalar." + g.getKey(), g.getValue());
             }

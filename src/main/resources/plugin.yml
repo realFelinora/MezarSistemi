@@ -8,7 +8,7 @@ description: Ölünce eşyaların kaybolmaz, mezarında seni bekler.
 commands:
   mezar:
     description: Mezarlarını gösterir ve yolunu gösterir.
-    usage: /<command> [liste|yenile]
+    usage: /<command> [liste|yenile|ornek]
     aliases: [mezarlar, grave, graves]
 
 permissions:

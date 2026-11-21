@@ -12,7 +12,18 @@ xp-sakla: true
 # Mezar oluşunca zararsız şimşek efekti
 simsek: true
 
-# Mezar olarak konacak blok (PLAYER_HEAD = oyuncunun kafası)
+# Mezar görünümü:
+#   gercekci = topraktan yükselen mezar taşı, toprak yığını, çiçekler, mumlar ve saplanmış silah
+#   kafa     = eski görünüm (aşağıdaki mezar-blogu)
+gorunum: gercekci
+
+# Gerçekçi mezar taşının bloğu (ör. polished_andesite, stone, polished_deepslate, tuff)
+tas-blogu: polished_andesite
+
+# Ölen oyuncunun en iyi kılıcı/baltası mezar toprağına saplanmış görünsün mü (sadece görüntü, eşya mezarda)
+silah-goster: true
+
+# "kafa" görünümünde mezar olarak konacak blok (PLAYER_HEAD = oyuncunun kafası)
 mezar-blogu: PLAYER_HEAD
 
 # Mezar havada kalırsa altına konacak blok

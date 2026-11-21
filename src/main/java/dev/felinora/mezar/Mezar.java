@@ -20,6 +20,15 @@ final class Mezar {
     final int xp;
 
     TextDisplay yazi;
+    /** Gerçekçi mezar: ön yüzün baktığı yön (derece, 90'a yuvarlanmış) ve rastgelelik tohumu. */
+    float yon;
+    long tohum;
+    final java.util.List<org.bukkit.entity.Display> gorseller = new java.util.ArrayList<>();
+    final java.util.List<Location> alevler = new java.util.ArrayList<>();
+    boolean animasyonda;
+    /** /mezar ornek ile oluşturulan gösteri mezarı: içinde eşya yok, kaydedilmez. */
+    boolean gosteri;
+    org.bukkit.inventory.ItemStack gosteriSilah;
 
     Mezar(UUID id, UUID sahip, String sahipAdi, Location yer, long zaman, Map<Integer, ItemStack> esyalar, int xp) {
         this.id = id;
