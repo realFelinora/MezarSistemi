@@ -3,6 +3,8 @@
 Paper/Spigot sunucuları için **Türkçe mezar eklentisi**.
 Oyuncu ölünce eşyaları yere saçılıp kaybolmaz, öldüğü yerde bir mezarda onu bekler.
 
+**⬇️ İndir:** [CurseForge](https://www.curseforge.com/minecraft/bukkit-plugins/graves-keep-items-and-xp-mezarsistemi) (önerilen) • [GitHub Releases](../../releases)
+
 ## Özellikler
 - **Gerçekçi mezar (2.0):** Öldüğün yerde şimşek ve çan sesiyle topraktan bir mezar taşı yükselir. Taşta ✝ R.I.P, adın ve ölüm tarihin yazar; yosunlu, eskimiş ve hafif eğridir. Önünde çiçekli bir toprak yığını, yanan mumlar ve **en iyi kılıcın toprağa saplıdır**. Her mezar biraz farklıdır. Açınca mezar toprağa geri batar.
 - **Eşyalar ve XP mezarda saklanır:** Levelin tamamı geri gelir
@@ -26,7 +28,7 @@ Oyuncu ölünce eşyaları yere saçılıp kaybolmaz, öldüğü yerde bir mezar
 `mezar.yonetici` yetkisi olanlar korumalı mezarları da açabilir.
 
 ## Kurulum
-1. [Releases](../../releases) kısmından `MezarSistemi-x.x.x.jar` dosyasını indirin.
+1. [CurseForge](https://www.curseforge.com/minecraft/bukkit-plugins/graves-keep-items-and-xp-mezarsistemi) ya da [Releases](../../releases) kısmından `MezarSistemi-x.x.x.jar` dosyasını indirin.
 2. Sunucunun `plugins` klasörüne atın ve sunucuyu yeniden başlatın.
 3. İsterseniz `plugins/MezarSistemi/config.yml` dosyasını düzenleyip `/mezar yenile` yazın.
 
